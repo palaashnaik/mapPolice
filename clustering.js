@@ -76,13 +76,22 @@ function categorizeRegion(longitude, latitude) {
 function visualizeClusters(clusteredData) {
     const groupedData = {};
     clusteredData.forEach(point => {
-        if (!groupedData[point.cluster.name]) {
-            groupedData[point.cluster.name] = [];
+        if (point.cluster && point.cluster.name) {
+            if (!groupedData[point.cluster.name]) {
+                groupedData[point.cluster.name] = [];
+            }
+            groupedData[point.cluster.name].push(point);
+        } else {
+            console.error('Invalid cluster data:', point);
         }
-        groupedData[point.cluster.name].push(point);
     });
 
     Object.entries(groupedData).forEach(([clusterName, points]) => {
+        if (points.length === 0) {
+            console.warn(`No points for cluster: ${clusterName}`);
+            return;
+        }
+
         const region = categorizeRegion(points[0].longitude, points[0].latitude);
         const color = regionColors[region];
 
@@ -99,12 +108,16 @@ function visualizeClusters(clusteredData) {
         });
 
         const centroid = centroids.find(c => c.name === clusterName);
-        L.marker([centroid.latitude, centroid.longitude], {
-            icon: L.divIcon({
-                className: 'cluster-icon',
-                html: `<div style="background-color: ${color}; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 16px; border: 2px solid #000;">${points.length}</div>`
-            })
-        }).bindPopup(`<strong>${clusterName}</strong><br>Region: ${region}<br>Violations: ${points.length}`).addTo(clusterGroup);
+        if (centroid) {
+            L.marker([centroid.latitude, centroid.longitude], {
+                icon: L.divIcon({
+                    className: 'cluster-icon',
+                    html: `<div style="background-color: ${color}; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 16px; border: 2px solid #000;">${points.length}</div>`
+                })
+            }).bindPopup(`<strong>${clusterName}</strong><br>Region: ${region}<br>Violations: ${points.length}`).addTo(clusterGroup);
+        } else {
+            console.error(`Centroid not found for cluster: ${clusterName}`);
+        }
 
         clusterGroup.addTo(map);
     });
@@ -136,7 +149,6 @@ function addHeatmapLayer(data) {
         gradient: {0.4: 'blue', 0.65: 'lime', 1: 'red'}
     }).addTo(map);
 
-    // Add layer control
     const baseLayers = {
         "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
@@ -164,7 +176,7 @@ async function init() {
         visualizeClusters(clusteredData);
         addHeatmapLayer(data);
     } catch (error) {
-        console.error('Error loading CSV data:', error);
+        console.error('Error initializing application:', error);
     }
 }
 
