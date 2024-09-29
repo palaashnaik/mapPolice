@@ -89,12 +89,12 @@ function visualizeClusters(clusteredData) {
         const clusterGroup = L.featureGroup();
         points.forEach(point => {
             L.circleMarker([point.latitude, point.longitude], {
-                radius: 5,
+                radius: 8,
                 fillColor: color,
                 color: '#000',
                 weight: 1,
                 opacity: 1,
-                fillOpacity: 0.8
+                fillOpacity: 1
             }).bindPopup(`Vehicle: ${point.vehicleNumber}<br>Violation: ${point.violations}`).addTo(clusterGroup);
         });
 
@@ -102,7 +102,7 @@ function visualizeClusters(clusteredData) {
         L.marker([centroid.latitude, centroid.longitude], {
             icon: L.divIcon({
                 className: 'cluster-icon',
-                html: `<div style="background-color: ${color}; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; justify-content: center; align-items: center; font-weight: bold;">${points.length}</div>`
+                html: `<div style="background-color: ${color}; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 16px; border: 2px solid #000;">${points.length}</div>`
             })
         }).bindPopup(`<strong>${clusterName}</strong><br>Region: ${region}<br>Violations: ${points.length}`).addTo(clusterGroup);
 
@@ -126,6 +126,31 @@ function addLegend() {
     legend.addTo(map);
 }
 
+function addHeatmapLayer(data) {
+    const heatData = data.map(point => [point.latitude, point.longitude, 1]);
+    const heat = L.heatLayer(heatData, {
+        radius: 25,
+        blur: 15,
+        maxZoom: 17,
+        max: 1,
+        gradient: {0.4: 'blue', 0.65: 'lime', 1: 'red'}
+    }).addTo(map);
+
+    // Add layer control
+    const baseLayers = {
+        "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        })
+    };
+
+    const overlays = {
+        "Heatmap": heat,
+        "Clusters": L.layerGroup(map._layers)
+    };
+
+    L.control.layers(baseLayers, overlays).addTo(map);
+}
+
 async function init() {
     try {
         data = await loadCSVData();
@@ -137,6 +162,7 @@ async function init() {
         initializeMap();
         const clusteredData = kMeansClustering(data, centroids);
         visualizeClusters(clusteredData);
+        addHeatmapLayer(data);
     } catch (error) {
         console.error('Error loading CSV data:', error);
     }
